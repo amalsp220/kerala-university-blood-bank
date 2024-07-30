@@ -6,7 +6,7 @@ from db_functions import add_donor, get_donors_by_blood_group, update_donor_stat
 # Streamlit app
 st.set_page_config(page_title="Kerala University Blood Bank", layout="centered")
 
-# Custom CSS for styling
+# Custom CSS for styling and JavaScript for hamburger menu
 st.markdown(
     """
     <style>
@@ -27,11 +27,13 @@ st.markdown(
         background-color: #f8f9fa;
         padding: 1em;
         border-radius: 8px;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
     }
     .stButton>button {
         width: 100%;
         background-color: #880808;
         color: white;
+        border-radius: 5px;
     }
     .stRadio>div {
         display: flex;
@@ -45,13 +47,66 @@ st.markdown(
         flex-direction: column;
         align-items: center;
     }
+    .donor-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 1em;
+        border-radius: 8px;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1em;
+    }
+    .donor-status {
+        font-weight: bold;
+    }
+    .hamburger {
+        display: none;
+        cursor: pointer;
+        font-size: 2em;
+        margin-left: 1em;
+    }
+    .hamburger span {
+        display: block;
+        width: 30px;
+        height: 3px;
+        background-color: #880808;
+        margin: 5px 0;
+    }
+    @media (max-width: 768px) {
+        .hamburger {
+            display: block;
+        }
+        .sidebar .sidebar-content {
+            display: none;
+        }
+        .sidebar.open .sidebar-content {
+            display: block;
+            position: absolute;
+            background-color: #f8f9fa;
+            width: 70%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            padding: 1em;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+    }
     </style>
+    <script>
+    function toggleSidebar() {
+        var sidebar = document.querySelector('.sidebar');
+        sidebar.classList.toggle('open');
+    }
+    </script>
     """,
     unsafe_allow_html=True
 )
 
 # Main title
-st.markdown("<h1 class='main-title'>Kerala University Blood Bank</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>KERALA UNIVERSITY BLOOD BANK</h1>", unsafe_allow_html=True)
+
+# Hamburger icon
+st.markdown('<div class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></div>', unsafe_allow_html=True)
 
 # Sidebar menu
 if "logged_in" not in st.session_state:
@@ -60,12 +115,35 @@ if "logged_in" not in st.session_state:
 if st.session_state.logged_in:
     st.sidebar.button("Logout", on_click=lambda: st.session_state.update(logged_in=False, donor=None))
 
-option = st.sidebar.selectbox("Choose an option", ["Student Donor Registration", "Find a Donor", "Donor Login"])
+option = st.sidebar.selectbox("Choose an option", ["Student Donor Registration", "Find a Donor", "Donor Login"], index=1)
 
 check_and_update_status()
 
+# Find a Donor (default page)
+if option == "Find a Donor":
+    st.markdown("<h2 class='sub-title'>Find a Donor</h2>", unsafe_allow_html=True)
+    blood_group = st.selectbox("Select Blood Group", ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+    search = st.button("Search")
+    
+    if search:
+        matching_donors = get_donors_by_blood_group(blood_group)
+        for donor in matching_donors:
+            status_color = "green" if donor[6] == "Ready to Donate" else "red"
+            st.markdown(
+                f"""
+                <div class='donor-card'>
+                    <p><strong>Name:</strong> {donor[1]}</p>
+                    <p><strong>Age:</strong> {donor[2]}</p>
+                    <p><strong>Department:</strong> {donor[4]}</p>
+                    <p><strong>Contact Number:</strong> <a href="tel:{donor[5]}">{donor[5]}</a></p>
+                    <p class='donor-status' style='color:{status_color};'><strong>Status:</strong> {donor[6]}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
 # Student Donor Registration
-if option == "Student Donor Registration":
+elif option == "Student Donor Registration":
     st.markdown("<h2 class='sub-title'>Student Donor Registration</h2>", unsafe_allow_html=True)
     with st.form("registration_form"):
         name = st.text_input("Name")
@@ -78,23 +156,6 @@ if option == "Student Donor Registration":
         if submitted:
             add_donor(name, age, blood_group, department, contact_number)
             st.success("You have successfully registered as a donor!")
-
-# Find a Donor
-elif option == "Find a Donor":
-    st.markdown("<h2 class='sub-title'>Find a Donor</h2>", unsafe_allow_html=True)
-    blood_group = st.selectbox("Select Blood Group", ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
-    search = st.button("Search")
-    
-    if search:
-        matching_donors = get_donors_by_blood_group(blood_group)
-        for donor in matching_donors:
-            status_color = "green" if donor[6] == "Ready to Donate" else "red"
-            st.write(f"**Name:** {donor[1]}")
-            st.write(f"**Age:** {donor[2]}")
-            st.write(f"**Department:** {donor[4]}")
-            st.write(f"**Contact Number:** {donor[5]}")
-            st.markdown(f"<span style='color:{status_color};'>**Status:** {donor[6]}</span>", unsafe_allow_html=True)
-            st.write("---")
 
 # Donor Login
 elif option == "Donor Login" and not st.session_state.logged_in:
